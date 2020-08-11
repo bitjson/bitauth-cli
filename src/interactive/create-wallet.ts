@@ -1,4 +1,4 @@
-import { Select, StringPrompt } from 'enquirer';
+import { NumberPrompt, Select, StringPrompt } from 'enquirer';
 
 import { DefaultTemplates, reservedAliasList } from '../internal/configuration';
 import { colors, toKebabCase } from '../internal/formatting';
@@ -41,7 +41,6 @@ export const interactiveCreateWallet = async () => {
     hint: '(new wallet types can be added with `bitauth template`)',
     margin: [1, 0, 0, 1],
     message: 'What kind of wallet would you like to create?',
-    name: 'type',
     type: 'select',
   });
 
@@ -50,11 +49,7 @@ export const interactiveCreateWallet = async () => {
 
   // TODO: allow js function templates, request all variables here
 
-  // get entities which can create wallets (own at least one locking script) – if only one, we can skip to naming
-
-  // TODO: determine ownership of locking scripts
-
-  // TODO: if only one entity owns a locking script, that entity is automatically selected
+  // TODO: get entities which can create wallets (own at least one locking script) – separate into "recommended" and other entities
 
   const templateEntityMap = Object.entries(
     selectedTemplate.template.entities
@@ -78,7 +73,6 @@ export const interactiveCreateWallet = async () => {
     },
     margin: [1, 0, 0, 1],
     message: 'Which role will be performed by this wallet?',
-    name: 'type',
     type: 'select',
   });
 
@@ -114,11 +108,39 @@ export const interactiveCreateWallet = async () => {
   const requiredVariables =
     selectedTemplate.template.entities[selectedEntityId].variables;
   if (requiredVariables !== undefined) {
-    // TODO: fill any non-key variables (if AddressData is required, prompt to ask for number of initial addresses to create)
+    const hasAddressData = Object.values(requiredVariables).some(
+      (variable) => variable.type === 'AddressData'
+    );
 
-    const variables = Object.entries(
-      requiredVariables
-    ).map(([variableId, variable]) => {});
+    const initialAddressCount = hasAddressData
+      ? await new NumberPrompt({
+          header:
+            'This wallet type requires some additional data to generate each address.',
+          initial: 1,
+          message: 'How many addresses would you like to pre-generate?',
+          validate: (number) => (number < 1 ? 'Must be greater than 0.' : true),
+        })
+          .run()
+          .catch(handleEnquirerError)
+      : undefined;
+
+    const variables = Object.entries(requiredVariables).map<
+      | {
+          variableId: string;
+          filled: true;
+          type: 'Key' | 'HdKey';
+          value: string;
+        }
+      | {
+          variableId: string;
+          filled: false;
+          type: 'AddressData' | 'HdKey';
+          value: Promise<string>;
+        }
+    >(([variableId, variable]) => {
+      if (variable.type === 'Key') {
+      }
+    });
   }
 
   return {
