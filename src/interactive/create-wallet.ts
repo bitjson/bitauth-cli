@@ -1,12 +1,23 @@
+import { randomBytes } from 'crypto';
+
+import {
+  encodeHdPrivateKey,
+  generateHdPrivateNode,
+  generatePrivateKey,
+  instantiateSha256,
+  instantiateSha512,
+} from '@bitauth/libauth';
 import { NumberPrompt, Select, StringPrompt } from 'enquirer';
 
 import { DefaultTemplates, reservedAliasList } from '../internal/configuration';
 import { colors, toKebabCase } from '../internal/formatting';
+import { logger } from '../internal/initialize';
 import { getTemplates } from '../internal/storage';
 
 import { handleEnquirerError } from './interactive-helpers';
 
 export const interactiveCreateWallet = async () => {
+  const log = await logger;
   const templates = await getTemplates();
 
   const defaultChoiceAlias = DefaultTemplates.p2pkh;
@@ -124,23 +135,88 @@ export const interactiveCreateWallet = async () => {
           .catch(handleEnquirerError)
       : undefined;
 
-    const variables = Object.entries(requiredVariables).map<
-      | {
-          variableId: string;
-          filled: true;
-          type: 'Key' | 'HdKey';
-          value: string;
+    const [sha256, sha512] = await Promise.all([
+      instantiateSha256(),
+      instantiateSha512(),
+    ]);
+    const keyLength = 32;
+    const random32Bytes = () => randomBytes(keyLength);
+    const variables = Object.entries(requiredVariables).reduce<{
+      addressData: { id: string; name: string; description: string }[];
+      hdKeys: { id: string; value: string }[];
+      keys: { id: string; value: Uint8Array }[];
+      walletData: { id: string; name: string; description: string }[];
+    }>(
+      // eslint-disable-next-line complexity
+      (all, entries) => {
+        const [id, variable] = entries;
+        if (variable.type === 'Key') {
+          return {
+            ...all,
+            keys: [
+              ...all.keys,
+              {
+                id,
+                value: generatePrivateKey(random32Bytes),
+              },
+            ],
+          };
         }
-      | {
-          variableId: string;
-          filled: false;
-          type: 'AddressData' | 'HdKey';
-          value: Promise<string>;
+        if (variable.type === 'HdKey') {
+          return {
+            ...all,
+            hdKeys: [
+              ...all.hdKeys,
+              {
+                id,
+                value: encodeHdPrivateKey(
+                  { sha256 },
+                  {
+                    network: 'mainnet',
+                    node: generateHdPrivateNode({ sha512 }, random32Bytes),
+                  }
+                ),
+              },
+            ],
+          };
         }
-    >(([variableId, variable]) => {
-      if (variable.type === 'Key') {
+        if (variable.type === 'WalletData') {
+          return {
+            ...all,
+            walletData: [
+              ...all.walletData,
+              {
+                description: variable.description ?? '',
+                id,
+                name: variable.name ?? id,
+              },
+            ],
+          };
+        }
+        if ((variable.type as unknown) !== 'AddressData') {
+          log.fatal(
+            `Template ${selectedTemplate.uniqueName} requires an unknown variable type: "${variable.type}".`
+          );
+        }
+        return {
+          ...all,
+          addressData: [
+            ...all.addressData,
+            {
+              description: variable.description ?? '',
+              id,
+              name: variable.name ?? id,
+            },
+          ],
+        };
+      },
+      {
+        addressData: [],
+        hdKeys: [],
+        keys: [],
+        walletData: [],
       }
-    });
+    );
   }
 
   return {
