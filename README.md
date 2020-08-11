@@ -65,9 +65,7 @@ For details, run: `bitauth wallet personal`
 }
  -->
 
-For our first wallet, let's choose the wallet type: `Single Signature (P2PKH)`. Follow the remaining prompts to choose a name and an alias for the wallet.
-
-When the setup is complete, confirm that the new wallet is in our list of wallets:
+For our first wallet, let's choose the wallet type: `Single Signature (P2PKH)`. Follow the remaining prompts to choose a name and an alias for the wallet. When the setup is complete, confirm that the new wallet is in our list of wallets:
 
 ```
 bitauth wallet
@@ -109,7 +107,7 @@ This is helpful when using Bitauth CLI from scripts or other programs.
 
 Now that the wallet has been created, we can generate an address to receive our first payment.
 
-We can get the first unused address from the wallet interface – `[ALIAS]` is the identifier you chose during the interactive wallet setup:
+We can get the first unused address from the wallet interface – `[ALIAS]` is the alias you chose during the interactive wallet setup:
 
 ```sh
 bitauth wallet [ALIAS]
@@ -153,9 +151,7 @@ bitauth id new
  - Which wallet should hold the signing output? (This wallet may temporarily sign on behalf of the identity.)
  -->
 
-Follow the prompts to choose a name, short identifier, and description for the Bitauth ID. When prompted, choose the wallet we created for both the identity and signing outputs.
-
-When the setup is complete, confirm that the new ID is in our list of Bitauth IDs:
+Follow the prompts to choose a name, alias, and description for the Bitauth ID. When prompted, choose the wallet we just created (for both the "ownership" and "signing" outputs). When the setup is complete, confirm that the new ID is in our list of Bitauth IDs:
 
 ```
 bitauth id
@@ -218,7 +214,7 @@ The interactive identity interface allows us to select from a list of actions to
 
 <!--
 
-doesn't have any options/interactivity – just creates the proposal.
+doesn't have any options/interactivity – just creates the proposal. Change output set to the ownership output, dust amount set to the signing output.
 
 $ bitauth id:update [ALIAS]
 Update transaction proposal created for identity Jason Dreyzehner ("me").
@@ -304,9 +300,8 @@ dim(● change output)
 ---- (required/recommended actions shown above separator)
 - Change Alias or Comment
 - Export Proposal
-- Import
+- Import Updated Proposal
 - Exit (hint: You can also exit with Ctrl+C.)
-
 
 
 ------------------
@@ -321,15 +316,41 @@ Warnings:
   - This transaction proposal modifies the identity: Another Merged One ("another")
 
 
-  - (OP_RETURN in 0th output + tracked identities:) This transaction permanently destroys and identity: Identity Name ("alias") - The Ownership (0th) output is un-spendable.
-  -
+  - (OP_RETURN in 0th output + tracked identities:) This transaction permanently destroys an identity: Identity Name ("alias") - The Ownership (0th) output is un-spendable.
 
+------------------
 
+Editing Inputs & Outputs
+========================
+
+Inputs:
+  c.dim(<empty>)
+
+  Add an input...
+  Reorder inputs...(prompt: Use the <left> or <right> arrow keys to sort...)
+
+Outputs:
+  0: 0.001 BCH – Personal Wallet (:1) – ● Change Output
+  1: 0.001 BCH – Another Wallet (:1)
+  2: 0 BCH – OP_RETURN (BKVP Metadata)
+
+  Add an output...
+  Reorder outputs...(prompt: Use the <left> or <right> arrow keys to sort...)
+  Select another change output...
+
+Finish Editing
+
+TODO:
+ - interface for adding/editing inputs
+ - interface for adding/editing standard output
+ - interface for adding/editing OP_RETURNs (and specialization for BKVP Metadata)
+
+  OP_RETURN details
  ({'n':'Jason Dreyzehner', 'c': ''})
 
  -->
 
-The interactive transaction interface allows you to edit inputs and outputs
+The interactive transaction interface allows you to edit the details of a transaction proposal, sign the transaction, and broadcast the final transaction to the network.
 
 ## Sign a File
 
@@ -416,24 +437,21 @@ Tracked Bitauth Identities      (show when visible:)    ● ownership   ○ sign
 All wallets, data, and configuration are stored in your Bitauth data directory. To show the data directory currently in use, run:
 
 ```
-bitauth config --data-dir
+bitauth config
 ```
 
 This can be configured using the `$BITAUTH_DATA_DIR` environment variable:
 
 ```sh
 export BITAUTH_DATA_DIR='~/another/data-directory';
-bitauth config --data-dir
-# => /Users/me/another/data-directory
+bitauth config
+# => BITAUTH_DATA_DIR: ~/.bitauth
+#    BITAUTH_LOG_LEVEL: info
 ```
 
 Using multiple data directories can be helpful for separating domains of wallets, e.g. "business" and "personal".
 
-For more information on the contents of the Bitauth data directory, see [the readme](src/internal/defaults/data-dir-readme.ts) generated in your own:
-
-```
-cat $(bitauth config --data-dir)/readme.md
-```
+For more information on the contents of the Bitauth data directory, see [the readme](src/internal/defaults/data-dir-readme.ts) which is automatically generated in each data directory.
 
 # CLI Reference
 
@@ -456,9 +474,10 @@ Below you'll find the [`help`](#bitauth-help-command) output for all available c
 - [`bitauth config`](#bitauth-config)
 - [`bitauth hello [FILE]`](#bitauth-hello-file)
 - [`bitauth help [COMMAND]`](#bitauth-help-command)
+- [`bitauth template`](#bitauth-template)
 - [`bitauth update [CHANNEL]`](#bitauth-update-channel)
-- [`bitauth wallet [FILE]`](#bitauth-wallet-file)
-- [`bitauth wallet:new [WALLET_ID] [TEMPLATE_ID]`](#bitauth-walletnew-wallet_id-template_id)
+- [`bitauth wallet [WALLET_ALIAS]`](#bitauth-wallet-wallet_alias)
+- [`bitauth wallet:new [WALLET_ALIAS] [TEMPLATE_ALIAS]`](#bitauth-walletnew-wallet_alias-template_alias)
 
 ## `bitauth autocomplete [SHELL]`
 
@@ -481,7 +500,7 @@ EXAMPLES
   $ bitauth autocomplete --refresh-cache
 ```
 
-_See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomplete/blob/v0.1.5/src/commands/autocomplete/index.ts)_
+_See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomplete/blob/v0.2.0/src/commands/autocomplete/index.ts)_
 
 ## `bitauth config`
 
@@ -493,16 +512,14 @@ USAGE
 
 OPTIONS
   -h, --help  show CLI help
-
-DESCRIPTION
-  Longer description here
+  --json      return output in JSON format
 ```
 
 _See code: [src/commands/config.ts](https://github.com/bitauth/bitauth-cli/blob/v0.0.0/src/commands/config.ts)_
 
 ## `bitauth hello [FILE]`
 
-short description here
+some demo info
 
 ```
 USAGE
@@ -538,7 +555,22 @@ OPTIONS
   --all  see all commands in CLI
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v2.2.3/src/commands/help.ts)_
+_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v3.1.0/src/commands/help.ts)_
+
+## `bitauth template`
+
+list available Bitauth templates
+
+```
+USAGE
+  $ bitauth template
+
+OPTIONS
+  -h, --help  show CLI help
+  --json      return output in JSON format
+```
+
+_See code: [src/commands/template.ts](https://github.com/bitauth/bitauth-cli/blob/v0.0.0/src/commands/template.ts)_
 
 ## `bitauth update [CHANNEL]`
 
@@ -549,18 +581,22 @@ USAGE
   $ bitauth update [CHANNEL]
 ```
 
-_See code: [@oclif/plugin-update](https://github.com/oclif/plugin-update/blob/v1.3.9/src/commands/update.ts)_
+_See code: [@oclif/plugin-update](https://github.com/oclif/plugin-update/blob/v1.3.10/src/commands/update.ts)_
 
-## `bitauth wallet [FILE]`
+## `bitauth wallet [WALLET_ALIAS]`
 
-short description here
+list all wallets
 
 ```
 USAGE
-  $ bitauth wallet [FILE]
+  $ bitauth wallet [WALLET_ALIAS]
+
+ARGUMENTS
+  WALLET_ALIAS  wallet alias
 
 OPTIONS
   -h, --help  show CLI help
+  --json      return output in JSON format
 
 DESCRIPTION
   Longer description here
@@ -575,17 +611,17 @@ EXAMPLE
 
 _See code: [src/commands/wallet/index.ts](https://github.com/bitauth/bitauth-cli/blob/v0.0.0/src/commands/wallet/index.ts)_
 
-## `bitauth wallet:new [WALLET_ID] [TEMPLATE_ID]`
+## `bitauth wallet:new [WALLET_ALIAS] [TEMPLATE_ALIAS]`
 
-short description here
+create a new wallet
 
 ```
 USAGE
-  $ bitauth wallet:new [WALLET_ID] [TEMPLATE_ID]
+  $ bitauth wallet:new [WALLET_ALIAS] [TEMPLATE_ALIAS]
 
 ARGUMENTS
-  WALLET_ID    wallet identifier
-  TEMPLATE_ID  authentication template identifier
+  WALLET_ALIAS    wallet alias
+  TEMPLATE_ALIAS  authentication template alias
 
 OPTIONS
   -h, --help  show CLI help
@@ -594,7 +630,7 @@ DESCRIPTION
   Longer description here
 
 EXAMPLE
-  $ bitauth wallet new
+  $ bitauth wallet:new
   hello world from ./src/hello.ts!
 ```
 

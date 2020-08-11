@@ -1,14 +1,18 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
-  "parserOptions": { "project": "test/tsconfig.json" },
+  "parserOptions": { "project": ["./tsconfig.json", "test/tsconfig.json"] },
   "env": { "es6": true },
   "plugins": ["import", "eslint-comments", "functional"],
   "ignorePatterns": ["node_modules", "build", "coverage"],
   "extends": ["oclif", "oclif-typescript", "bitauth"],
   "rules": {
+    "valid-jsdoc": "off",
+    "no-process-exit": "off", // replaced by @unicorn/no-process-exit
+    "unicorn/no-abusive-eslint-disable": "off", // fails on "// eslint-disable-next-line @typescript-eslint/no-explicit-any"
     "@typescript-eslint/explicit-member-accessibility": "off",
     "@typescript-eslint/require-await": "off",
+    "@typescript-eslint/prefer-readonly-parameter-types": "off",
     "functional/no-class": "off",
     "functional/no-conditional-statement": "off",
     "functional/no-this-expression": "off",

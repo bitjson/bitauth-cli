@@ -4,6 +4,20 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "bitauth wallet:new",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/bin/run",
+      "args": ["wallet:new"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "BITAUTH_DATA_DIR": "~/.bitauth-dev",
+        "BITAUTH_LOG_LEVEL": "debug"
+      }
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Debug All Tests",
       "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
