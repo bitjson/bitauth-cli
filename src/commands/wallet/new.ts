@@ -45,6 +45,28 @@ Longer description here`;
     const log = await logger;
     const { args, flags: flag } = this.parse(WalletNew);
     const walletName = args.WALLET_NAME as string | undefined;
+
+    const attemptJsonParseFlag = (
+      maybeJson: string | undefined
+    ):
+      | undefined
+      | { success: true; parsed: unknown }
+      | { success: false; error: SyntaxError } => {
+      // eslint-disable-next-line functional/no-let, @typescript-eslint/init-declarations
+      let parsed: unknown;
+      if (maybeJson === undefined) {
+        return undefined;
+      }
+      // eslint-disable-next-line functional/no-try-statement
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        parsed = JSON.parse(maybeJson);
+      } catch (error) {
+        return { error: error as SyntaxError, success: false };
+      }
+      return { parsed, success: true };
+    };
+
     const settings =
       walletName === undefined
         ? await (async () => {
@@ -67,20 +89,19 @@ Longer description here`;
                   )}'`
                 : ''
             }`;
+            log.trace(`equivalent command: ${equivalentCommand}`);
             this.log(colors.dim(equivalentCommand));
             return result;
           })()
         : (() => {
-            // // parse and log
+            const addressData = attemptJsonParseFlag(flag['address-data']);
+            if (addressData !== undefined && !addressData.success) {
+              log.fatal(
+                `The address-data flag contains invalid JSON: ${addressData.error.message}`
+              );
+            }
 
-            /*
-             * if(flag.addressData === undefined)
-             * try {
-             *   const addressData = JSON.parse(flag.addressData);
-             * }
-             */
-
-            return {};
+            return { addressData };
           })();
 
     /*
