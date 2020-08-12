@@ -51,6 +51,9 @@ bitauth wallet new
   - How many addresses should be pre-generated?
   - Please provide a value for `variable_name`: (First sentence of variable description) Footer: The remaining portion of the variable description as a hint. (Followed by) Result: [computed in hex and disassembled] | Error: [BTL compilation error]
 
+__**Wallet Data**__
+Variable name:
+
 (Print full CLI command with dim text:)
 Creating wallet...
 $ bitauth wallet:new "Personal Wallet" "personal" --template="m-of-n" --template-parameters="{m:2,n:2}" --entity="owner" --wallet-data="{wallet_var:'0x012345'}" --address-data="[{addr_var: '1'}, {addr_var: '2'}]"

@@ -1,13 +1,16 @@
 import { randomBytes } from 'crypto';
 
 import {
+  binToHex,
+  compileBtl,
   encodeHdPrivateKey,
   generateHdPrivateNode,
   generatePrivateKey,
   instantiateSha256,
   instantiateSha512,
+  range,
 } from '@bitauth/libauth';
-import { NumberPrompt, Select, StringPrompt } from 'enquirer';
+import { Form, NumberPrompt, Select, StringPrompt } from 'enquirer';
 
 import { DefaultTemplates, reservedAliasList } from '../internal/configuration';
 import { colors, toKebabCase } from '../internal/formatting';
@@ -116,14 +119,139 @@ export const interactiveCreateWallet = async () => {
     .run()
     .catch(handleEnquirerError);
 
+  const walletParameters = {
+    selectedEntityName,
+    selectedTemplate,
+    walletAlias,
+    walletName,
+  };
+
   const requiredVariables =
     selectedTemplate.template.entities[selectedEntityId].variables;
-  if (requiredVariables !== undefined) {
-    const hasAddressData = Object.values(requiredVariables).some(
-      (variable) => variable.type === 'AddressData'
-    );
+  if (requiredVariables === undefined) {
+    return walletParameters;
+  }
 
-    const initialAddressCount = hasAddressData
+  const [sha256, sha512] = await Promise.all([
+    instantiateSha256(),
+    instantiateSha512(),
+  ]);
+  const keyLength = 32;
+  const random32Bytes = () => randomBytes(keyLength);
+  const partitionedVariables = Object.entries(requiredVariables).reduce<{
+    addressData: { id: string; name: string; description: string }[];
+    hdKeys: { id: string; value: string }[];
+    keys: { id: string; value: Uint8Array }[];
+    walletData: { id: string; name: string; description: string }[];
+  }>(
+    // eslint-disable-next-line complexity
+    (all, entries) => {
+      const [id, variable] = entries;
+      if (variable.type === 'Key') {
+        return {
+          ...all,
+          keys: [
+            ...all.keys,
+            {
+              id,
+              value: generatePrivateKey(random32Bytes),
+            },
+          ],
+        };
+      }
+      if (variable.type === 'HdKey') {
+        return {
+          ...all,
+          hdKeys: [
+            ...all.hdKeys,
+            {
+              id,
+              value: encodeHdPrivateKey(
+                { sha256 },
+                {
+                  network: 'mainnet',
+                  node: generateHdPrivateNode({ sha512 }, random32Bytes),
+                }
+              ),
+            },
+          ],
+        };
+      }
+      if (variable.type === 'WalletData') {
+        return {
+          ...all,
+          walletData: [
+            ...all.walletData,
+            {
+              description: variable.description ?? '',
+              id,
+              name: variable.name ?? id,
+            },
+          ],
+        };
+      }
+      if ((variable.type as unknown) !== 'AddressData') {
+        log.fatal(
+          `Template ${selectedTemplate.uniqueName} requires an unknown variable type: "${variable.type}".`
+        );
+      }
+      return {
+        ...all,
+        addressData: [
+          ...all.addressData,
+          {
+            description: variable.description ?? '',
+            id,
+            name: variable.name ?? id,
+          },
+        ],
+      };
+    },
+    {
+      addressData: [],
+      hdKeys: [],
+      keys: [],
+      walletData: [],
+    }
+  );
+
+  const hasWalletData = partitionedVariables.walletData.length > 0;
+  const walletData = hasWalletData
+    ? await (async () => {
+        // fill wallet data first
+        const walletDataById = partitionedVariables.walletData.reduce<{
+          [id: string]: {
+            id: string;
+            name: string;
+            description: string;
+          };
+        }>((all, variable) => ({ ...all, [variable.id]: variable }), {});
+        const walletDataPrompt: Form = new Form({
+          choices: partitionedVariables.walletData.map((variable) => ({
+            message: variable.name,
+            name: variable.id,
+          })),
+          footer: () => {
+            if (walletDataPrompt.focused === undefined) return '';
+            const currentFieldId = walletDataPrompt.focused.name;
+            return walletDataById[currentFieldId].description;
+          },
+          header: () => {
+            if (walletDataPrompt.focused === undefined) return '';
+            const currentFieldValue = walletDataPrompt.focused.input;
+            const result = compileBtl(currentFieldValue);
+            return `Computed: ${
+              typeof result === 'string' ? result : `0x${binToHex(result)}`
+            }`;
+          },
+          message: 'Please provide the require wallet data:',
+        });
+        return walletDataPrompt.run().catch(handleEnquirerError);
+      })()
+    : undefined;
+
+  const initialAddressCount =
+    partitionedVariables.addressData.length > 0
       ? await new NumberPrompt({
           header:
             'This wallet type requires some additional data to generate each address.',
@@ -135,95 +263,60 @@ export const interactiveCreateWallet = async () => {
           .catch(handleEnquirerError)
       : undefined;
 
-    const [sha256, sha512] = await Promise.all([
-      instantiateSha256(),
-      instantiateSha512(),
-    ]);
-    const keyLength = 32;
-    const random32Bytes = () => randomBytes(keyLength);
-    const variables = Object.entries(requiredVariables).reduce<{
-      addressData: { id: string; name: string; description: string }[];
-      hdKeys: { id: string; value: string }[];
-      keys: { id: string; value: Uint8Array }[];
-      walletData: { id: string; name: string; description: string }[];
-    }>(
-      // eslint-disable-next-line complexity
-      (all, entries) => {
-        const [id, variable] = entries;
-        if (variable.type === 'Key') {
-          return {
-            ...all,
-            keys: [
-              ...all.keys,
-              {
-                id,
-                value: generatePrivateKey(random32Bytes),
-              },
-            ],
-          };
-        }
-        if (variable.type === 'HdKey') {
-          return {
-            ...all,
-            hdKeys: [
-              ...all.hdKeys,
-              {
-                id,
-                value: encodeHdPrivateKey(
-                  { sha256 },
-                  {
-                    network: 'mainnet',
-                    node: generateHdPrivateNode({ sha512 }, random32Bytes),
-                  }
-                ),
-              },
-            ],
-          };
-        }
-        if (variable.type === 'WalletData') {
-          return {
-            ...all,
-            walletData: [
-              ...all.walletData,
-              {
-                description: variable.description ?? '',
-                id,
-                name: variable.name ?? id,
-              },
-            ],
-          };
-        }
-        if ((variable.type as unknown) !== 'AddressData') {
-          log.fatal(
-            `Template ${selectedTemplate.uniqueName} requires an unknown variable type: "${variable.type}".`
+  const addressData =
+    initialAddressCount === undefined
+      ? undefined
+      : await (async () => {
+          // fill wallet data first
+          const addressDataById = partitionedVariables.addressData.reduce<{
+            [id: string]: {
+              id: string;
+              name: string;
+              description: string;
+            };
+          }>((all, variable) => ({ ...all, [variable.id]: variable }), {});
+
+          const addressPrompts = range(initialAddressCount).map(
+            (addressIndex) => {
+              const addressDataPrompt: Form = new Form({
+                choices: partitionedVariables.addressData.map((variable) => ({
+                  message: variable.name,
+                  name: variable.id,
+                })),
+                footer: () => {
+                  if (addressDataPrompt.focused === undefined) return '';
+                  const currentFieldId = addressDataPrompt.focused.name;
+                  return addressDataById[currentFieldId].description;
+                },
+                header: () => {
+                  if (addressDataPrompt.focused === undefined) return '';
+                  const currentFieldValue = addressDataPrompt.focused.input;
+                  const result = compileBtl(currentFieldValue);
+                  return `Computed: ${
+                    typeof result === 'string'
+                      ? result
+                      : `0x${binToHex(result)}`
+                  }`;
+                },
+                message: `Please provide the address data for address ${addressIndex}:`,
+              });
+              return addressDataPrompt;
+            }
           );
-        }
-        return {
-          ...all,
-          addressData: [
-            ...all.addressData,
-            {
-              description: variable.description ?? '',
-              id,
-              name: variable.name ?? id,
-            },
-          ],
-        };
-      },
-      {
-        addressData: [],
-        hdKeys: [],
-        keys: [],
-        walletData: [],
-      }
-    );
-  }
+
+          const results: { [id: string]: string }[] = [];
+          // eslint-disable-next-line functional/no-loop-statement
+          for (const addressPrompt of addressPrompts) {
+            // eslint-disable-next-line functional/immutable-data
+            results.push(
+              // eslint-disable-next-line no-await-in-loop
+              await addressPrompt.run().catch(handleEnquirerError)
+            );
+          }
+          return results;
+        })();
 
   return {
-    requiredVariables,
-    selectedEntityName,
-    selectedTemplate,
-    walletAlias,
-    walletName,
+    ...walletParameters,
   };
 };
