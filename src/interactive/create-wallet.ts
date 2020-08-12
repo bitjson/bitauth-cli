@@ -194,7 +194,6 @@ export const interactiveCreateWallet = async () => {
   const hasWalletData = partitionedVariables.walletData.length > 0;
   const walletData = hasWalletData
     ? await (async () => {
-        // fill wallet data first
         const walletDataById = partitionedVariables.walletData.reduce<{
           [id: string]: {
             id: string;
@@ -223,6 +222,20 @@ export const interactiveCreateWallet = async () => {
             );
           },
           message: 'Please provide the required wallet data:',
+          validate: (inputs: Record<string, string>) => {
+            const firstError = Object.entries(inputs)
+              .map(([id, value]) => {
+                if (value === '') {
+                  return `The value for ${walletDataById[id].name} may not be empty.`;
+                }
+                const result = compileBtl(value);
+                return typeof result === 'string'
+                  ? `The current value for ${walletDataById[id].name} is invalid: ${result}`
+                  : false;
+              })
+              .find((result): result is string => result !== false);
+            return firstError === undefined ? true : firstError;
+          },
         });
         const result = await walletDataPrompt.run().catch(handleEnquirerError);
         logFormResult(result, walletDataById);
@@ -283,6 +296,20 @@ export const interactiveCreateWallet = async () => {
                   );
                 },
                 message: `Please provide the address data for address ${addressIndex}:`,
+                validate: (inputs: Record<string, string>) => {
+                  const firstError = Object.entries(inputs)
+                    .map(([id, value]) => {
+                      if (value === '') {
+                        return `The value for ${addressDataById[id].name} may not be empty.`;
+                      }
+                      const result = compileBtl(value);
+                      return typeof result === 'string'
+                        ? `The current value for ${addressDataById[id].name} is invalid: ${result}`
+                        : false;
+                    })
+                    .find((result): result is string => result !== false);
+                  return firstError === undefined ? true : firstError;
+                },
               });
               return addressDataPrompt;
             }
