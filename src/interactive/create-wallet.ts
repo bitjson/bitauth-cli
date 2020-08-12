@@ -26,6 +26,7 @@ const logFormResult = (
   logSpacer();
 };
 
+// eslint-disable-next-line complexity
 export const interactiveCreateWallet = async () => {
   const log = await logger;
   const templates = await getTemplates();
@@ -66,7 +67,8 @@ export const interactiveCreateWallet = async () => {
   });
 
   const templateChoice = await templatePrompt.run().catch(handleEnquirerError);
-  const selectedTemplate = templates[choiceToAlias[templateChoice]];
+  const selectedTemplateAlias = choiceToAlias[templateChoice];
+  const selectedTemplate = templates[selectedTemplateAlias];
 
   // TODO: allow js function templates, request all variables here
 
@@ -127,8 +129,8 @@ export const interactiveCreateWallet = async () => {
     .catch(handleEnquirerError);
 
   const walletParameters = {
-    selectedEntityName,
-    selectedTemplate,
+    selectedEntityId,
+    selectedTemplateAlias,
     walletAlias,
     walletName,
   };
@@ -191,7 +193,18 @@ export const interactiveCreateWallet = async () => {
 
   logSpacer();
 
+  const hasAddressData = partitionedVariables.addressData.length > 0;
   const hasWalletData = partitionedVariables.walletData.length > 0;
+
+  if (hasAddressData || hasWalletData) {
+    // eslint-disable-next-line no-console
+    console.log(
+      colors.bold.red(
+        'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
+      )
+    );
+  }
+
   const walletData = hasWalletData
     ? await (async () => {
         const walletDataById = partitionedVariables.walletData.reduce<{
@@ -243,18 +256,17 @@ export const interactiveCreateWallet = async () => {
       })()
     : undefined;
 
-  const initialAddressCount =
-    partitionedVariables.addressData.length > 0
-      ? await new NumberPrompt({
-          header:
-            'This wallet type requires some additional data to generate each address.',
-          initial: 1,
-          message: 'How many addresses would you like to pre-generate?',
-          validate: (number) => (number < 1 ? 'Must be greater than 0.' : true),
-        })
-          .run()
-          .catch(handleEnquirerError)
-      : undefined;
+  const initialAddressCount = hasAddressData
+    ? await new NumberPrompt({
+        header:
+          'This wallet type requires some additional data to generate each address.',
+        initial: 1,
+        message: 'How many addresses would you like to pre-generate?',
+        validate: (number) => (number < 1 ? 'Must be greater than 0.' : true),
+      })
+        .run()
+        .catch(handleEnquirerError)
+    : undefined;
 
   const addressData =
     initialAddressCount === undefined

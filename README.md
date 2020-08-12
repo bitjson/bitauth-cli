@@ -56,7 +56,7 @@ Variable name:
 
 (Print full CLI command with dim text:)
 Creating wallet...
-$ bitauth wallet:new "Personal Wallet" "personal" --template="m-of-n" --template-parameters="{m:2,n:2}" --entity="owner" --wallet-data="{wallet_var:'0x012345'}" --address-data="[{addr_var: '1'}, {addr_var: '2'}]"
+$ bitauth wallet:new "Personal Wallet" --alias='personal' --template='m-of-n' --template-parameters='{"m":2,"n":2}' --entity='owner' --wallet-data='{"wallet_var":"0x012345"}' --address-data='[{"addr_var": "1"}, {"addr_var": "2"}]'
 
 New wallet "Personal Wallet" partially created at: $BITAUTH_DATA_DIR/wallets/personal
 
