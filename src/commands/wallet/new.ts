@@ -1,7 +1,11 @@
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
+import { colors } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
+
+const bashEscapeSingleQuote = (bashString: string) =>
+  bashString.replace(/'/gu, "'\\''");
 
 export default class WalletNew extends Command {
   static description = `create a new wallet
@@ -46,6 +50,24 @@ Longer description here`;
         ? await (async () => {
             const result = await interactiveCreateWallet();
             log.debug(`interactiveCreateWallet returned: %j`, result);
+            const equivalentCommand = `bitauth:new '${bashEscapeSingleQuote(
+              result.walletName
+            )}' --alias='${result.walletAlias}' --template='${
+              result.templateAlias
+            }' --entity='${result.entityId}'${
+              'walletData' in result && result.walletData !== undefined
+                ? ` --wallet-data='${bashEscapeSingleQuote(
+                    JSON.stringify(result.walletData)
+                  )}'`
+                : ''
+            }${
+              'addressData' in result && result.addressData !== undefined
+                ? ` --address-data='${bashEscapeSingleQuote(
+                    JSON.stringify(result.addressData)
+                  )}'`
+                : ''
+            }`;
+            this.log(colors.dim(equivalentCommand));
             return result;
           })()
         : (() => {
