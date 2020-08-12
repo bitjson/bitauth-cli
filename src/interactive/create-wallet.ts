@@ -67,8 +67,8 @@ export const interactiveCreateWallet = async () => {
   });
 
   const templateChoice = await templatePrompt.run().catch(handleEnquirerError);
-  const selectedTemplateAlias = choiceToAlias[templateChoice];
-  const selectedTemplate = templates[selectedTemplateAlias];
+  const templateAlias = choiceToAlias[templateChoice];
+  const selectedTemplate = templates[templateAlias];
 
   // TODO: allow js function templates, request all variables here
 
@@ -102,7 +102,7 @@ export const interactiveCreateWallet = async () => {
   const selectedEntityName = await entityPrompt
     .run()
     .catch(handleEnquirerError);
-  const selectedEntityId = templateEntityMap[selectedEntityName];
+  const entityId = templateEntityMap[selectedEntityName];
 
   const walletName = await new StringPrompt({
     hint: '(used in CLI output, e.g. "Personal Wallet")',
@@ -129,14 +129,14 @@ export const interactiveCreateWallet = async () => {
     .catch(handleEnquirerError);
 
   const walletParameters = {
-    selectedEntityId,
-    selectedTemplateAlias,
+    entityId,
+    templateAlias,
     walletAlias,
     walletName,
   };
 
   const requiredVariables =
-    selectedTemplate.template.entities[selectedEntityId].variables;
+    selectedTemplate.template.entities[entityId].variables;
   if (requiredVariables === undefined) {
     return walletParameters;
   }

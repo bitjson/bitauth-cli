@@ -9,12 +9,15 @@ export default class WalletNew extends Command {
 Longer description here`;
 
   static examples = [
-    `$ bitauth wallet:new
-hello world from ./src/hello.ts!
-`,
+    `$ bitauth wallet:new # (starts interactive flow)`,
+    `$ bitauth wallet:new 'Personal Wallet' --alias='personal' --template='p2pkh' --entity='owner'`,
+    `$ bitauth wallet:new 'Business Wallet' --alias='business' --template='2-of-2-recoverable' --entity='signer_1' --wallet-data='{"delay_seconds":"2592000"}'`,
   ];
 
   static flags = {
+    'address-data': flags.string({
+      description: 'an array of address data in JSON format',
+    }),
     alias: flags.string({ description: 'the alias of the new wallet' }),
     entity: flags.string({
       description: 'the role performed by the new wallet',
@@ -23,7 +26,7 @@ hello world from ./src/hello.ts!
     template: flags.string({ description: 'the alias of the template to use' }),
     // "template-parameters": flags.string({description: 'the parameters to pass to a dynamic template'}),
     'wallet-data': flags.string({
-      description: 'the wallet data in JSON',
+      description: 'an object containing the wallet data in JSON format',
     }),
   };
 
@@ -35,13 +38,37 @@ hello world from ./src/hello.ts!
   ];
 
   async run() {
-    const { args } = this.parse(WalletNew);
+    const log = await logger;
+    const { args, flags: flag } = this.parse(WalletNew);
     const walletName = args.WALLET_NAME as string | undefined;
-    if (walletName === undefined) {
-      const result = await interactiveCreateWallet();
-      (await logger).debug(`interactiveCreateWallet returned: %j`, result);
-      // this.log('result', result);
-    }
+    const settings =
+      walletName === undefined
+        ? await (async () => {
+            const result = await interactiveCreateWallet();
+            log.debug(`interactiveCreateWallet returned: %j`, result);
+            return result;
+          })()
+        : (() => {
+            // // parse and log
+
+            /*
+             * if(flag.addressData === undefined)
+             * try {
+             *   const addressData = JSON.parse(flag.addressData);
+             * }
+             */
+
+            return {};
+          })();
+
+    /*
+     * { addressData: ar } as { addressData: Record<string, string>[] | undefined;
+     *   walletData: Record<string, string> | undefined;
+     *   entityId: string;
+     *   templateAlias: string;
+     *   walletAlias: string;
+     *   walletName: string;}
+     */
 
     this.log('TODO: run command');
   }
