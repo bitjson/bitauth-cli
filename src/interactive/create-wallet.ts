@@ -1,15 +1,4 @@
-import { randomBytes } from 'crypto';
-
-import {
-  binToHex,
-  compileBtl,
-  encodeHdPrivateKey,
-  generateHdPrivateNode,
-  generatePrivateKey,
-  instantiateSha256,
-  instantiateSha512,
-  range,
-} from '@bitauth/libauth';
+import { binToHex, compileBtl, range } from '@bitauth/libauth';
 import { Form, NumberPrompt, Select, StringPrompt } from 'enquirer';
 
 import { DefaultTemplates, reservedAliasList } from '../internal/configuration';
@@ -131,52 +120,13 @@ export const interactiveCreateWallet = async () => {
   if (requiredVariables === undefined) {
     return walletParameters;
   }
-
-  const [sha256, sha512] = await Promise.all([
-    instantiateSha256(),
-    instantiateSha512(),
-  ]);
-  const keyLength = 32;
-  const random32Bytes = () => randomBytes(keyLength);
   const partitionedVariables = Object.entries(requiredVariables).reduce<{
     addressData: { id: string; name: string; description: string }[];
-    hdKeys: { id: string; value: string }[];
-    keys: { id: string; value: Uint8Array }[];
     walletData: { id: string; name: string; description: string }[];
   }>(
     // eslint-disable-next-line complexity
     (all, entries) => {
       const [id, variable] = entries;
-      if (variable.type === 'Key') {
-        return {
-          ...all,
-          keys: [
-            ...all.keys,
-            {
-              id,
-              value: generatePrivateKey(random32Bytes),
-            },
-          ],
-        };
-      }
-      if (variable.type === 'HdKey') {
-        return {
-          ...all,
-          hdKeys: [
-            ...all.hdKeys,
-            {
-              id,
-              value: encodeHdPrivateKey(
-                { sha256 },
-                {
-                  network: 'mainnet',
-                  node: generateHdPrivateNode({ sha512 }, random32Bytes),
-                }
-              ),
-            },
-          ],
-        };
-      }
       if (variable.type === 'WalletData') {
         return {
           ...all,
@@ -190,27 +140,33 @@ export const interactiveCreateWallet = async () => {
           ],
         };
       }
-      if ((variable.type as unknown) !== 'AddressData') {
+      if (variable.type === 'AddressData') {
+        return {
+          ...all,
+          addressData: [
+            ...all.addressData,
+            {
+              description: variable.description ?? '',
+              id,
+              name: variable.name ?? id,
+            },
+          ],
+        };
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (variable.type !== 'Key' && variable.type !== 'HdKey') {
         log.fatal(
-          `Template ${selectedTemplate.uniqueName} requires an unknown variable type: "${variable.type}".`
+          `Template ${
+            selectedTemplate.uniqueName
+          } requires an unknown variable type: "${
+            ((variable as unknown) as { type: string }).type
+          }".`
         );
       }
-      return {
-        ...all,
-        addressData: [
-          ...all.addressData,
-          {
-            description: variable.description ?? '',
-            id,
-            name: variable.name ?? id,
-          },
-        ],
-      };
+      return all;
     },
     {
       addressData: [],
-      hdKeys: [],
-      keys: [],
       walletData: [],
     }
   );
@@ -304,7 +260,7 @@ export const interactiveCreateWallet = async () => {
             }
           );
 
-          const results: { [id: string]: string }[] = [];
+          const results: Record<string, string>[] = [];
           // eslint-disable-next-line functional/no-loop-statement
           for (const addressPrompt of addressPrompts) {
             // eslint-disable-next-line functional/immutable-data
@@ -318,5 +274,7 @@ export const interactiveCreateWallet = async () => {
 
   return {
     ...walletParameters,
+    addressData,
+    walletData,
   };
 };
