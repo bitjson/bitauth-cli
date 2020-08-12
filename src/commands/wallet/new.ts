@@ -1,6 +1,7 @@
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
+import { logger } from '../../internal/initialize';
 
 export default class WalletNew extends Command {
   static description = `create a new wallet
@@ -33,10 +34,9 @@ hello world from ./src/hello.ts!
     const walletAlias = args.WALLET_ALIAS as string | undefined;
     if (walletAlias === undefined) {
       const result = await interactiveCreateWallet();
-      this.log('result', result);
+      (await logger).debug(`interactiveCreateWallet returned: %j`, result);
+      // this.log('result', result);
     }
-
-    // TODO: disallow wallet alias of `new`
 
     this.log('TODO: run command');
   }

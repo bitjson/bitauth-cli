@@ -8,6 +8,24 @@ import { getTemplates } from '../internal/storage';
 
 import { handleEnquirerError } from './interactive-helpers';
 
+const logSpacer = () => {
+  // eslint-disable-next-line no-console
+  console.log();
+};
+
+const logFormResult = (
+  result: Record<string, string>,
+  mapping: { [id: string]: { name: string } }
+) => {
+  // eslint-disable-next-line no-console
+  console.log(
+    Object.entries(result)
+      .map(([id, value]) => `${colors.dim(mapping[id].name)}: ${value}`)
+      .join(' | ')
+  );
+  logSpacer();
+};
+
 export const interactiveCreateWallet = async () => {
   const log = await logger;
   const templates = await getTemplates();
@@ -171,6 +189,8 @@ export const interactiveCreateWallet = async () => {
     }
   );
 
+  logSpacer();
+
   const hasWalletData = partitionedVariables.walletData.length > 0;
   const walletData = hasWalletData
     ? await (async () => {
@@ -190,19 +210,23 @@ export const interactiveCreateWallet = async () => {
           footer: () => {
             if (walletDataPrompt.focused === undefined) return '';
             const currentFieldId = walletDataPrompt.focused.name;
-            return walletDataById[currentFieldId].description;
+            return colors.dim(walletDataById[currentFieldId].description);
           },
           header: () => {
             if (walletDataPrompt.focused === undefined) return '';
             const currentFieldValue = walletDataPrompt.focused.input;
             const result = compileBtl(currentFieldValue);
-            return `Computed: ${
-              typeof result === 'string' ? result : `0x${binToHex(result)}`
-            }`;
+            return colors.dim(
+              `Computed: ${
+                typeof result === 'string' ? result : `0x${binToHex(result)}`
+              }`
+            );
           },
-          message: 'Please provide the require wallet data:',
+          message: 'Please provide the required wallet data:',
         });
-        return walletDataPrompt.run().catch(handleEnquirerError);
+        const result = await walletDataPrompt.run().catch(handleEnquirerError);
+        logFormResult(result, walletDataById);
+        return result;
       })()
     : undefined;
 
@@ -223,7 +247,7 @@ export const interactiveCreateWallet = async () => {
     initialAddressCount === undefined
       ? undefined
       : await (async () => {
-          // fill wallet data first
+          logSpacer();
           const addressDataById = partitionedVariables.addressData.reduce<{
             [id: string]: {
               id: string;
@@ -242,17 +266,21 @@ export const interactiveCreateWallet = async () => {
                 footer: () => {
                   if (addressDataPrompt.focused === undefined) return '';
                   const currentFieldId = addressDataPrompt.focused.name;
-                  return addressDataById[currentFieldId].description;
+                  return colors.dim(
+                    addressDataById[currentFieldId].description
+                  );
                 },
                 header: () => {
                   if (addressDataPrompt.focused === undefined) return '';
                   const currentFieldValue = addressDataPrompt.focused.input;
                   const result = compileBtl(currentFieldValue);
-                  return `Computed: ${
-                    typeof result === 'string'
-                      ? result
-                      : `0x${binToHex(result)}`
-                  }`;
+                  return colors.dim(
+                    `Computed: ${
+                      typeof result === 'string'
+                        ? result
+                        : `0x${binToHex(result)}`
+                    }`
+                  );
                 },
                 message: `Please provide the address data for address ${addressIndex}:`,
               });
@@ -263,14 +291,16 @@ export const interactiveCreateWallet = async () => {
           const results: Record<string, string>[] = [];
           // eslint-disable-next-line functional/no-loop-statement
           for (const addressPrompt of addressPrompts) {
+            // eslint-disable-next-line no-await-in-loop
+            const result = await addressPrompt.run().catch(handleEnquirerError);
+            logFormResult(result, addressDataById);
             // eslint-disable-next-line functional/immutable-data
-            results.push(
-              // eslint-disable-next-line no-await-in-loop
-              await addressPrompt.run().catch(handleEnquirerError)
-            );
+            results.push(result);
           }
           return results;
         })();
+
+  logSpacer();
 
   return {
     ...walletParameters,
