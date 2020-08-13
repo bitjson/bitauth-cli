@@ -27,10 +27,10 @@ const logFormResult = (
 };
 
 // eslint-disable-next-line complexity
-export const interactiveCreateWallet = async () => {
-  const log = await logger;
-  const templates = await getTemplates();
-
+export const interactiveCreateWallet = async (
+  templatesPromise: ReturnType<typeof getTemplates>
+) => {
+  const [log, templates] = await Promise.all([logger, templatesPromise]);
   const defaultChoiceAlias = DefaultTemplates.p2pkh;
   const defaultChoice = templates[defaultChoiceAlias].uniqueName;
   const otherChoicesToAlias = Object.entries(templates)
@@ -129,9 +129,11 @@ export const interactiveCreateWallet = async () => {
     .catch(handleEnquirerError);
 
   const walletParameters = {
+    addressData: undefined,
     entityId,
     templateAlias,
     walletAlias,
+    walletData: undefined,
     walletName,
   };
 
@@ -179,7 +181,7 @@ export const interactiveCreateWallet = async () => {
           `Template ${
             selectedTemplate.uniqueName
           } requires an unknown variable type: "${
-            ((variable as unknown) as { type: string }).type
+            (variable as { type: string }).type
           }".`
         );
       }

@@ -1,8 +1,10 @@
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
+import { parseJsonFlag, parseJsonFlagOrFail } from '../../internal/flags';
 import { colors } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
+import { getTemplates } from '../../internal/storage';
 
 const bashEscapeSingleQuote = (bashString: string) =>
   bashString.replace(/'/gu, "'\\''");
@@ -46,31 +48,11 @@ Longer description here`;
     const { args, flags: flag } = this.parse(WalletNew);
     const walletName = args.WALLET_NAME as string | undefined;
 
-    const attemptJsonParseFlag = (
-      maybeJson: string | undefined
-    ):
-      | undefined
-      | { success: true; parsed: unknown }
-      | { success: false; error: SyntaxError } => {
-      // eslint-disable-next-line functional/no-let, @typescript-eslint/init-declarations
-      let parsed: unknown;
-      if (maybeJson === undefined) {
-        return undefined;
-      }
-      // eslint-disable-next-line functional/no-try-statement
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        parsed = JSON.parse(maybeJson);
-      } catch (error) {
-        return { error: error as SyntaxError, success: false };
-      }
-      return { parsed, success: true };
-    };
-
+    const templatesPromise = getTemplates();
     const settings =
       walletName === undefined
         ? await (async () => {
-            const result = await interactiveCreateWallet();
+            const result = await interactiveCreateWallet(templatesPromise);
             log.debug(`interactiveCreateWallet returned: %j`, result);
             const equivalentCommand = `bitauth:new '${bashEscapeSingleQuote(
               result.walletName
@@ -93,25 +75,20 @@ Longer description here`;
             this.log(colors.dim(equivalentCommand));
             return result;
           })()
-        : (() => {
-            const addressData = attemptJsonParseFlag(flag['address-data']);
-            if (addressData !== undefined && !addressData.success) {
-              log.fatal(
-                `The address-data flag contains invalid JSON: ${addressData.error.message}`
-              );
-            }
-
-            return { addressData };
+        : await (async () => {
+            const addressData = await parseJsonFlagOrFail(flag, 'address-data');
+            const walletData = await parseJsonFlagOrFail(flag, 'wallet-data');
+            return {
+              addressData: addressData?.parsed,
+              entityId: flag.entity,
+              templateAlias: flag.template,
+              walletAlias: flag.alias,
+              walletData: walletData?.parsed,
+              walletName,
+            };
           })();
 
-    /*
-     * { addressData: ar } as { addressData: Record<string, string>[] | undefined;
-     *   walletData: Record<string, string> | undefined;
-     *   entityId: string;
-     *   templateAlias: string;
-     *   walletAlias: string;
-     *   walletName: string;}
-     */
+    // TODO: validate settings
 
     this.log('TODO: run command');
   }
