@@ -25,7 +25,7 @@ hello world from ./src/hello.ts!
 
   static args = [
     {
-      description: 'wallet alias',
+      description: 'the alias of the wallet to open',
       name: 'WALLET_ALIAS',
     },
   ];
@@ -38,7 +38,8 @@ hello world from ./src/hello.ts!
     }
     if (flag.json) {
       // TODO: --json support
-      this.log(`TODO`);
+      this.log(`TODO: --json`);
+      return;
     }
     this.log(`wallet output`);
   }

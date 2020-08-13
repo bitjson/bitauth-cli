@@ -7,29 +7,17 @@ import { colors, toKebabCase } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
 import { getTemplates } from '../../internal/storage';
 
-// : T is not undefined
-const failIfUndefined = <T>(
-  value: T | undefined,
-  message: string
-): value is T => {
-  if (value === undefined) {
-    log.fatal(message);
-  }
-  return true;
-};
-
 const bashEscapeSingleQuote = (bashString: string) =>
   bashString.replace(/\\/gu, '\\').replace(/'/gu, "'\\''");
 
 export default class WalletNew extends Command {
-  static description = `create a new wallet
-
-Longer description here`;
+  static description = `create a new wallet`;
 
   static examples = [
-    `$ bitauth wallet:new # (starts interactive flow)`,
+    `$ bitauth wallet:new\n${colors.dim('(interactive flow)')}\n`,
     `$ bitauth wallet:new 'Personal Wallet' --alias='personal' --template='p2pkh' --entity='owner'`,
     `$ bitauth wallet:new 'Business Wallet' --alias='business' --template='2-of-2-recoverable' --entity='signer_1' --wallet-data='{"delay_seconds":"2592000"}'`,
+    `$ bitauth wallet:new 'Signing Oracle' --alias='oracle' --template-json='{"version": 0,"scripts:...' --entity='oracle' --address-data='[{"payment_number": 1},{"payment_number":2}]'`,
   ];
 
   static flags = {
@@ -42,7 +30,15 @@ Longer description here`;
     }),
     help: flags.help({ char: 'h' }),
     template: flags.string({ description: 'the alias of the template to use' }),
-    // "template-parameters": flags.string({description: 'the parameters to pass to a dynamic template'}),
+    'template-json': flags.string({
+      description: 'the template to use in JSON format',
+      exclusive: ['template', 'template-parameters'],
+    }),
+    'template-parameters': flags.string({
+      dependsOn: ['template'],
+      description:
+        'the parameters to pass to a dynamic template (not yet supported)',
+    }),
     'wallet-data': flags.string({
       description: 'an object containing the wallet data in JSON format',
     }),
@@ -50,7 +46,7 @@ Longer description here`;
 
   static args = [
     {
-      description: 'wallet name',
+      description: 'the name of the new wallet',
       name: 'WALLET_NAME',
     },
   ];
@@ -103,10 +99,14 @@ Longer description here`;
 
     const walletName = settings.walletName.trim();
     if (walletName === '') {
-      log.fatal('Please provide a wallet name.');
+      return log.fatal('Please provide a wallet name.');
     }
     const walletAlias = settings.walletAlias ?? toKebabCase(walletName);
     const templates = await templatesPromise;
+
+    if (flag['template-json'] !== undefined) {
+      return log.fatal('Sorry, template-json is not yet supported.');
+    }
 
     const { templateAlias, addressData, entityId, walletData } = settings;
 
@@ -122,25 +122,14 @@ Longer description here`;
         }
       | undefined;
 
-    failIfUndefined(
-      template,
-      `A template with the alias '${templateAlias}' was not found in the current Bitauth data directory.`
-    );
+    if (template === undefined) {
+      return log.fatal(
+        `A template with the alias '${templateAlias}' was not found in the current Bitauth data directory.`
+      );
+    }
 
     template.uniqueName;
 
     this.log('TODO: run command');
   }
 }
-
-const exit = () => {
-  // eslint-disable-next-line unicorn/no-process-exit
-  process.exit();
-};
-
-const test = async (val: string | undefined) => {
-  if (val === undefined) {
-    return (await logger).fatal('');
-  }
-  return val;
-};

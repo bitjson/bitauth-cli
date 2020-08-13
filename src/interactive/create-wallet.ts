@@ -241,6 +241,12 @@ export const interactiveCreateWallet = async (
             const firstError = Object.entries(inputs)
               .map(([id, value]) => {
                 if (value === '') {
+                  /**
+                   * This is just a rough check for user interactivity – when
+                   * not using the interactive flow, it's possible for values to
+                   * be `''`. To provide an "empty" value during the interactive
+                   * flow, just use a space (` `).
+                   */
                   return `The value for ${walletDataById[id].name} may not be empty.`;
                 }
                 const result = compileBtl(value);
@@ -314,6 +320,12 @@ export const interactiveCreateWallet = async (
                   const firstError = Object.entries(inputs)
                     .map(([id, value]) => {
                       if (value === '') {
+                        /**
+                         * This is just a rough check for user interactivity –
+                         * when not using the interactive flow, it's possible
+                         * for values to be `''`. To provide an "empty" value
+                         * during the interactive flow, just use a space (` `).
+                         */
                         return `The value for ${addressDataById[id].name} may not be empty.`;
                       }
                       const result = compileBtl(value);
