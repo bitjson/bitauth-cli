@@ -163,16 +163,6 @@ export default class WalletNew extends Command {
       );
     }
 
-    // get required variables by type
-
-    // check that all address data an wallet data is provided (and no unexpected properties were provided)
-
-    // fill key values
-
-    // output `wallet-secret.json` - keep keys in separate property from wallet data (to make more interchangeable once wallet groups land)
-
-    // output `${workingDirectory}/${alias}-wallet-invitation.json` with everything but the keys.
-
     const partitionedVariables =
       entity.variables === undefined
         ? undefined
@@ -211,16 +201,30 @@ export default class WalletNew extends Command {
             }
           );
 
-    /*
-     * if (hasAddressData || hasWalletData) {
-     *   // eslint-disable-next-line no-console
-     *   console.log(
-     *     colors.bold.red(
-     *       'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
-     *     )
-     *   );
-     * }
-     */
+    if (partitionedVariables === undefined) {
+      // TODO:
+      return undefined;
+    }
+
+    const hasAddressData = partitionedVariables.addressData.length > 0;
+    const hasWalletData = partitionedVariables.walletData.length > 0;
+
+    if (hasAddressData || hasWalletData) {
+      // eslint-disable-next-line no-console
+      console.log(
+        colors.bold.red(
+          'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
+        )
+      );
+    }
+
+    // check that all address data and wallet data is provided (and no unexpected properties were provided)
+
+    // fill key values
+
+    // output `wallet-secret.json` - keep keys in separate property from wallet data (to make more interchangeable once wallet groups land)
+
+    // output `${workingDirectory}/${alias}-wallet-invitation.json` with everything but the keys.
 
     this.log('TODO: run command');
     return undefined;
