@@ -21,7 +21,7 @@ const getLoggerInstance = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     debug: (msg: string, ...args: any[]) => logger.debug(msg, ...args),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fatal: (msg: string, ...args: any[]) => {
+    fatal: (msg: string, ...args: any[]): never => {
       logger.fatal(msg, ...args);
       // eslint-disable-next-line no-console
       console.error(colors.red('✖'), colors.red.bold(msg), ...args);

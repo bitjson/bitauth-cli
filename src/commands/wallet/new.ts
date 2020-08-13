@@ -1,10 +1,22 @@
+import { AuthenticationTemplate } from '@bitauth/libauth';
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
 import { parseJsonFlagOrFail } from '../../internal/flags';
-import { colors } from '../../internal/formatting';
+import { colors, toKebabCase } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
 import { getTemplates } from '../../internal/storage';
+
+// : T is not undefined
+const failIfUndefined = <T>(
+  value: T | undefined,
+  message: string
+): value is T => {
+  if (value === undefined) {
+    log.fatal(message);
+  }
+  return true;
+};
 
 const bashEscapeSingleQuote = (bashString: string) =>
   bashString.replace(/\\/gu, '\\').replace(/'/gu, "'\\''");
@@ -43,14 +55,15 @@ Longer description here`;
     },
   ];
 
+  // eslint-disable-next-line complexity
   async run() {
     const log = await logger;
     const { args, flags: flag } = this.parse(WalletNew);
-    const walletName = args.WALLET_NAME as string | undefined;
+    const walletNameArg = args.WALLET_NAME as string | undefined;
 
     const templatesPromise = getTemplates();
     const settings =
-      walletName === undefined
+      walletNameArg === undefined
         ? await (async () => {
             const result = await interactiveCreateWallet(templatesPromise);
             log.debug(`interactiveCreateWallet returned: %j`, result);
@@ -84,17 +97,50 @@ Longer description here`;
               templateAlias: flag.template,
               walletAlias: flag.alias,
               walletData: walletData?.parsed,
-              walletName,
+              walletName: walletNameArg,
             };
           })();
 
-    if (settings.templateAlias === 'undefined') {
-      log.fatal(
+    const walletName = settings.walletName.trim();
+    if (walletName === '') {
+      log.fatal('Please provide a wallet name.');
+    }
+    const walletAlias = settings.walletAlias ?? toKebabCase(walletName);
+    const templates = await templatesPromise;
+
+    const { templateAlias, addressData, entityId, walletData } = settings;
+
+    if (typeof templateAlias !== 'string') {
+      return log.fatal(
         'Please provide a --template with which to create this wallet.'
       );
-      return;
     }
+    const template = templates[templateAlias] as
+      | {
+          template: AuthenticationTemplate;
+          uniqueName: string;
+        }
+      | undefined;
+
+    failIfUndefined(
+      template,
+      `A template with the alias '${templateAlias}' was not found in the current Bitauth data directory.`
+    );
+
+    template.uniqueName;
 
     this.log('TODO: run command');
   }
 }
+
+const exit = () => {
+  // eslint-disable-next-line unicorn/no-process-exit
+  process.exit();
+};
+
+const test = async (val: string | undefined) => {
+  if (val === undefined) {
+    return (await logger).fatal('');
+  }
+  return val;
+};
