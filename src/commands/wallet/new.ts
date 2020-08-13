@@ -1,13 +1,13 @@
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
-import { parseJsonFlag, parseJsonFlagOrFail } from '../../internal/flags';
+import { parseJsonFlagOrFail } from '../../internal/flags';
 import { colors } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
 import { getTemplates } from '../../internal/storage';
 
 const bashEscapeSingleQuote = (bashString: string) =>
-  bashString.replace(/'/gu, "'\\''");
+  bashString.replace(/\\/gu, '\\').replace(/'/gu, "'\\''");
 
 export default class WalletNew extends Command {
   static description = `create a new wallet
@@ -88,7 +88,12 @@ Longer description here`;
             };
           })();
 
-    // TODO: validate settings
+    if (settings.templateAlias === 'undefined') {
+      log.fatal(
+        'Please provide a --template with which to create this wallet.'
+      );
+      return;
+    }
 
     this.log('TODO: run command');
   }
