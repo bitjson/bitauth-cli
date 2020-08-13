@@ -1,17 +1,19 @@
 import {
   AuthenticationTemplate,
+  AuthenticationTemplateEntity,
   validateAuthenticationTemplate,
 } from '@bitauth/libauth';
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
 import { parseJsonFlagOrFail } from '../../internal/flags';
-import { colors, toKebabCase } from '../../internal/formatting';
+import {
+  bashEscapeSingleQuote,
+  colors,
+  toKebabCase,
+} from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
 import { getTemplates } from '../../internal/storage';
-
-const bashEscapeSingleQuote = (bashString: string) =>
-  bashString.replace(/\\/gu, '\\').replace(/'/gu, "'\\''");
 
 export default class WalletNew extends Command {
   static description = `create a new wallet`;
@@ -123,7 +125,7 @@ export default class WalletNew extends Command {
 
     const { templateAlias, addressData, entityId, walletData } = settings;
 
-    const foundTemplate =
+    const foundTemplateDetails =
       typeof templateAlias === 'string'
         ? (templates[templateAlias] as
             | {
@@ -133,17 +135,92 @@ export default class WalletNew extends Command {
             | undefined)
         : undefined;
 
-    if (templateAlias !== undefined && foundTemplate === undefined) {
+    if (templateAlias !== undefined && foundTemplateDetails === undefined) {
       return log.fatal(
         `A template with the alias '${templateAlias}' was not found in the current Bitauth data directory.`
       );
     }
-    const template = foundTemplate ?? settings.template;
+    const template = foundTemplateDetails?.template ?? settings.template;
     if (template === undefined) {
       return log.fatal(
         `No template was provided. Please provide a template using either --template or --template-json.`
       );
     }
+
+    if (typeof entityId !== 'string') {
+      return log.fatal(
+        `No entity was provided. Please indicate the role to be performed by this wallet using --entity.`
+      );
+    }
+
+    const entity = template.entities[entityId] as
+      | AuthenticationTemplateEntity
+      | undefined;
+
+    if (entity === undefined) {
+      return log.fatal(
+        `An entity with an ID of ${entityId} is not available in this template.`
+      );
+    }
+
+    // get required variables by type
+
+    // check that all address data an wallet data is provided (and no unexpected properties were provided)
+
+    // fill key values
+
+    // output `wallet-secret.json` - keep keys in separate property from wallet data (to make more interchangeable once wallet groups land)
+
+    // output `${workingDirectory}/${alias}-wallet-invitation.json` with everything but the keys.
+
+    const partitionedVariables =
+      entity.variables === undefined
+        ? undefined
+        : Object.entries(entity.variables).reduce<{
+            addressData: { id: string }[];
+            walletData: { id: string }[];
+            keys: { id: string }[];
+            requiresHdKey: boolean;
+          }>(
+            (all, entries) => {
+              const [id, variable] = entries;
+              if (variable.type === 'WalletData') {
+                return { ...all, walletData: [...all.walletData, { id }] };
+              }
+              if (variable.type === 'AddressData') {
+                return { ...all, addressData: [...all.addressData, { id }] };
+              }
+              if (variable.type === 'Key') {
+                return { ...all, keys: [...all.keys, { id }] };
+              }
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              if (variable.type !== 'HdKey') {
+                log.fatal(
+                  `The provided template requires an unknown variable type: "${
+                    (variable as { type: string }).type
+                  }".`
+                );
+              }
+              return { ...all, requiresHdKey: true };
+            },
+            {
+              addressData: [],
+              keys: [],
+              requiresHdKey: false,
+              walletData: [],
+            }
+          );
+
+    /*
+     * if (hasAddressData || hasWalletData) {
+     *   // eslint-disable-next-line no-console
+     *   console.log(
+     *     colors.bold.red(
+     *       'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
+     *     )
+     *   );
+     * }
+     */
 
     this.log('TODO: run command');
     return undefined;

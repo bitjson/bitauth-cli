@@ -8,3 +8,6 @@ export const formatJson = (json: unknown) =>
 
 export const toKebabCase = (text: string) =>
   text.toLowerCase().replace(/[^a-z0-9]/gu, '-');
+
+export const bashEscapeSingleQuote = (bashString: string) =>
+  bashString.replace(/\\/gu, '\\').replace(/'/gu, "'\\''");

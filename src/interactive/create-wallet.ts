@@ -26,7 +26,6 @@ const logFormResult = (
   logSpacer();
 };
 
-// eslint-disable-next-line complexity
 export const interactiveCreateWallet = async (
   templatesPromise: ReturnType<typeof getTemplates>
 ) => {
@@ -197,16 +196,6 @@ export const interactiveCreateWallet = async (
 
   const hasAddressData = partitionedVariables.addressData.length > 0;
   const hasWalletData = partitionedVariables.walletData.length > 0;
-
-  if (hasAddressData || hasWalletData) {
-    // eslint-disable-next-line no-console
-    console.log(
-      colors.bold.red(
-        'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
-      )
-    );
-  }
-
   const walletData = hasWalletData
     ? await (async () => {
         const walletDataById = partitionedVariables.walletData.reduce<{

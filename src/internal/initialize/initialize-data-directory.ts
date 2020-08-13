@@ -66,6 +66,7 @@ const validationsAndMigrations = async () => {
     (await logger).info(`Readme.md does not match, overwriting: ${readmePath}`);
     await writeFile(readmePath, defaultReadmeMd);
   }
+  // TODO: scan wallets, if any use a filename/alias on the reservedAliasList, rename to `${before}-wallet`
 };
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
