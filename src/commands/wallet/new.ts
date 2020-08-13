@@ -1,4 +1,7 @@
-import { AuthenticationTemplate } from '@bitauth/libauth';
+import {
+  AuthenticationTemplate,
+  validateAuthenticationTemplate,
+} from '@bitauth/libauth';
 import { Command, flags } from '@oclif/command';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
@@ -82,14 +85,28 @@ export default class WalletNew extends Command {
             }`;
             log.trace(`equivalent command: ${equivalentCommand}`);
             this.log(colors.dim(equivalentCommand));
-            return result;
+            return { ...result, template: undefined };
           })()
         : await (async () => {
             const addressData = await parseJsonFlagOrFail(flag, 'address-data');
             const walletData = await parseJsonFlagOrFail(flag, 'wallet-data');
+            const templateJson = await parseJsonFlagOrFail(
+              flag,
+              'template-json'
+            );
+            const template =
+              templateJson === undefined
+                ? undefined
+                : validateAuthenticationTemplate(templateJson.parsed);
+            if (typeof template === 'string') {
+              return log.fatal(
+                `The template provided via --template-json is not valid: ${template}`
+              );
+            }
             return {
               addressData: addressData?.parsed,
               entityId: flag.entity,
+              template,
               templateAlias: flag.template,
               walletAlias: flag.alias,
               walletData: walletData?.parsed,
@@ -104,32 +121,31 @@ export default class WalletNew extends Command {
     const walletAlias = settings.walletAlias ?? toKebabCase(walletName);
     const templates = await templatesPromise;
 
-    if (flag['template-json'] !== undefined) {
-      return log.fatal('Sorry, template-json is not yet supported.');
-    }
-
     const { templateAlias, addressData, entityId, walletData } = settings;
 
-    if (typeof templateAlias !== 'string') {
-      return log.fatal(
-        'Please provide a --template with which to create this wallet.'
-      );
-    }
-    const template = templates[templateAlias] as
-      | {
-          template: AuthenticationTemplate;
-          uniqueName: string;
-        }
-      | undefined;
+    const foundTemplate =
+      typeof templateAlias === 'string'
+        ? (templates[templateAlias] as
+            | {
+                template: AuthenticationTemplate;
+                uniqueName: string;
+              }
+            | undefined)
+        : undefined;
 
-    if (template === undefined) {
+    if (templateAlias !== undefined && foundTemplate === undefined) {
       return log.fatal(
         `A template with the alias '${templateAlias}' was not found in the current Bitauth data directory.`
       );
     }
-
-    template.uniqueName;
+    const template = foundTemplate ?? settings.template;
+    if (template === undefined) {
+      return log.fatal(
+        `No template was provided. Please provide a template using either --template or --template-json.`
+      );
+    }
 
     this.log('TODO: run command');
+    return undefined;
   }
 }
