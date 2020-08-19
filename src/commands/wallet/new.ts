@@ -312,11 +312,8 @@ export default class WalletNew extends Command {
     const hasWalletData = partitionedVariables.walletData.length > 0;
 
     if (hasAddressData || hasWalletData) {
-      // eslint-disable-next-line no-console
-      console.log(
-        colors.bold.red(
-          'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may permanently prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
-        )
+      log.warn(
+        'WARNING: this wallet template requires custom variables – Bitauth CLI does not yet support "dry-run" testing, so invalid variables may permanently prevent funds from being spendable. Test this wallet carefully before using it on mainnet.'
       );
     }
 
