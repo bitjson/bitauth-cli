@@ -138,9 +138,6 @@ export const interactiveCreateWallet = async (
 
   const requiredVariables =
     selectedTemplate.template.entities[entityId].variables;
-  if (requiredVariables === undefined) {
-    return walletParameters;
-  }
   const partitionedVariables = Object.entries(requiredVariables).reduce<{
     addressData: { id: string; name: string; description: string }[];
     walletData: { id: string; name: string; description: string }[];
