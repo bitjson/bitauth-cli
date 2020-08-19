@@ -24,7 +24,7 @@ import { parseJsonFlagOrFail } from '../../internal/flags';
 import {
   bashEscapeSingleQuote,
   colors,
-  formatJsonForSigning,
+  serializeJsonForSigning,
   toKebabCase,
 } from '../../internal/formatting';
 import { logger } from '../../internal/initialize';
@@ -350,17 +350,18 @@ export default class WalletNew extends Command {
     };
     const keys = partitionedVariables.keys.map(getKeyPair);
 
-    const hasMultipleEntities = Object.keys(template.entities).length > 1;
-    const entityMessagingKey = hasMultipleEntities
-      ? getKeyPair('entityMessagingKey')
-      : undefined;
-
-    const privateKeys = keys.reduce(
-      (all, pair) => ({ ...all, [pair.id]: pair.privateKey }),
+    /**
+     * We always create a messaging key, even for single-entity wallets – though
+     * messages between entities don't necessarily need to be validated,
+     * messaging keys are still useful for derived watch-only wallets.
+     */
+    const entityMessagingKey = getKeyPair('entityMessagingKey');
+    const privateKeys = keys.reduce<{ [id: string]: string }>(
+      (all, pair) => ({ ...all, [pair.id]: binToHex(pair.privateKey) }),
       {}
     );
-    const publicKeys = keys.reduce(
-      (all, pair) => ({ ...all, [pair.id]: pair.publicKey }),
+    const publicKeys = keys.reduce<{ [id: string]: string }>(
+      (all, pair) => ({ ...all, [pair.id]: binToHex(pair.publicKey) }),
       {}
     );
 
@@ -416,15 +417,29 @@ export default class WalletNew extends Command {
       },
     };
 
-    const walletShareSigningSerialization = formatJsonForSigning(walletShare);
+    /**
+     * TODO: if only one entity, finalize wallet
+     */
+    // const hasMultipleEntities = Object.keys(template.entities).length > 1;
+
+    const walletShareSigningSerialization = serializeJsonForSigning(
+      walletShare
+    );
+    const walletShareHash = ripemd160.hash(
+      sha256.hash(walletShareSigningSerialization)
+    );
+    const walletShareSignature = secp256k1.signMessageHashDER(
+      entityMessagingKey.privateKey,
+      walletShareHash
+    );
 
     const proposal = {
-      messagingKeys: entityMessagingKey
-        ? {
-            [entityId]: entityMessagingKey.publicKey,
-          }
-        : undefined,
-      shareSignatures: {},
+      messagingKeys: {
+        [entityId]: binToHex(entityMessagingKey.publicKey),
+      },
+      shareSignatures: {
+        [entityId]: binToHex(walletShareSignature),
+      },
       walletShares: {
         [entityId]: walletShare,
       },
@@ -437,15 +452,13 @@ export default class WalletNew extends Command {
             ? undefined
             : {
                 private: hdKey.privateKey,
-                seed: hdKey.seed,
+                seed: binToHex(hdKey.seed),
               },
-        messagingKey: entityMessagingKey?.privateKey,
+        messagingKey: binToHex(entityMessagingKey.privateKey),
         privateKeys,
       },
       proposal,
     };
-
-    // fill key values
 
     // output `wallet-secret.json` - keep keys in separate property from wallet data (to make more interchangeable once wallet groups land)
 
