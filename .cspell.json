@@ -22,6 +22,7 @@
     "ndjson",
     "oclif",
     "pino",
+    "preimage",
     "Satoshi",
     "schnorr",
     "subcommand",
