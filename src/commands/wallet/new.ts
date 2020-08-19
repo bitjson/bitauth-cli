@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { join } from 'path';
 
 import {
   AuthenticationTemplate,
@@ -18,16 +19,19 @@ import {
   validateAuthenticationTemplate,
 } from '@bitauth/libauth';
 import { Command, flags } from '@oclif/command';
+import { ensureDir, writeFile } from 'fs-extra';
 
 import { interactiveCreateWallet } from '../../interactive/create-wallet';
+import { DataDirectory } from '../../internal/configuration';
 import { parseJsonFlagOrFail } from '../../internal/flags';
 import {
   bashEscapeSingleQuote,
   colors,
+  formatJson,
   serializeJsonForSigning,
   toKebabCase,
 } from '../../internal/formatting';
-import { logger } from '../../internal/initialize';
+import { bitauthDataDirectory, logger } from '../../internal/initialize';
 import { getTemplates } from '../../internal/storage';
 
 const ripemd160Promise = instantiateRipemd160();
@@ -157,6 +161,8 @@ export default class WalletNew extends Command {
     const log = await logger;
     const { args, flags: flag } = this.parse(WalletNew);
     const walletNameArg = args.WALLET_NAME as string | undefined;
+
+    // TODO: get wallets – prevent duplicate aliases
 
     const templatesPromise = getTemplates();
     const settings =
@@ -460,11 +466,36 @@ export default class WalletNew extends Command {
       proposal,
     };
 
-    // output `wallet-secret.json` - keep keys in separate property from wallet data (to make more interchangeable once wallet groups land)
+    const walletSecretJson = formatJson(walletSecret);
+    log.trace(`walletSecretJson created: %j`, walletSecretJson);
+    const dataDir = await bitauthDataDirectory;
+    const walletsDir = join(dataDir, DataDirectory.wallets);
+    const newWalletDir = join(walletsDir, walletAlias);
+    await ensureDir(newWalletDir).catch(log.fatal);
+    const walletSecretPath = join(newWalletDir, DataDirectory.walletSecret);
+    await writeFile(walletSecretPath, walletSecretJson).catch(log.fatal);
+    log.info(`New wallet written to: %j`, walletSecretPath);
 
-    // output `${workingDirectory}/${alias}-wallet-proposal.json` with everything but the keys.
+    const proposalJson = formatJson(proposal);
+    const proposalPath = join(
+      process.cwd(),
+      `${walletAlias}${DataDirectory.walletProposalSuffix}`
+    );
+    await writeFile(proposalPath, proposalJson).catch(log.fatal);
+    log.info(`New proposal written to: %j`, proposalPath);
 
-    this.log('TODO: run command');
+    const otherEntityNames = Object.entries(template.entities)
+      .filter(([id]) => id !== entityId)
+      .map(([id, entityValue]) => entityValue.name ?? id);
+
+    this.log(
+      `${colors.bold(
+        'Wallet proposal created!'
+      )} 🎉\n\nA wallet proposal for "${walletName}" was saved to: ${proposalPath}\n To finish creating this wallet, share this file with: ${otherEntityNames.join(
+        ', '
+      )}`
+    );
+
     return undefined;
   }
 }

@@ -18,25 +18,48 @@ const getLoggerInstance = async () => {
   const logFilePath = join(dataDir, logFileName);
   const logger = pino({ level: 'trace' }, pino.destination(logFilePath));
   return {
+    /**
+     * Log at level `20`.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     debug: (msg: string, ...args: any[]) => logger.debug(msg, ...args),
+    /**
+     * Log at level `60`, `console.error` in red, then `process.exit(1)`.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fatal: (msg: string, ...args: any[]): never => {
       logger.fatal(msg, ...args);
       // eslint-disable-next-line no-console
-      console.error(colors.red('✖'), colors.red.bold(msg), ...args);
+      console.error(
+        colors.red(colors.symbols.cross),
+        colors.red.bold(msg),
+        ...args
+      );
       // eslint-disable-next-line unicorn/no-process-exit
       process.exit(1);
     },
+    /**
+     * Log at level `30`.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     info: (msg: string, ...args: any[]) => logger.info(msg, ...args),
+    /**
+     * Log at level `10`.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     trace: (msg: string, ...args: any[]) => logger.trace(msg, ...args),
+    /**
+     * Log at level `40` and `console.error` in yellow.
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     warn: (msg: string, ...args: any[]) => {
       logger.warn(msg, ...args);
       // eslint-disable-next-line no-console
-      console.error(colors.yellow('⚠'), colors.yellow.bold(msg), ...args);
+      console.error(
+        colors.yellow(colors.symbols.warning),
+        colors.yellow.bold(msg),
+        ...args
+      );
     },
   };
 };

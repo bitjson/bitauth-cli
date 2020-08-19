@@ -48,6 +48,7 @@ export enum DataDirectory {
   readme = 'readme.md',
   walletSecret = 'wallet-secret.json',
   walletCache = 'cache.json',
+  walletProposalSuffix = '-wallet-proposal.json',
 }
 
 export enum DefaultTemplates {
